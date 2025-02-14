@@ -6,7 +6,7 @@ import queue
 
 def get_stream_url(youtube_url):
     ydl_opts = {
-        "format": "best[ext=mp4]",
+        "format": "best[height<=240]",
         "quiet": True,
         "noplaylist": True,
         "buffer_size": "16M",
@@ -17,7 +17,7 @@ def get_stream_url(youtube_url):
         return info["url"]
     
 
-class VideoCapture:
+class LiveCapture:
 
     def __init__(self, url, max_buffer_size=30):
         self.url = url

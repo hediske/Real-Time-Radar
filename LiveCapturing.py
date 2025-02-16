@@ -6,8 +6,8 @@ import queue
 
 def get_stream_url(youtube_url):
     ydl_opts = {
-        "format": "best[height<=240]",
-        "quiet": True,
+        "format": "best",
+        # "quiet": True,
         "noplaylist": True,
         "buffer_size": "16M",
         "downloader_args": {"ffmpeg_i": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"},

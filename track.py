@@ -7,10 +7,10 @@ from inference import get_model
 import supervision as sv
 
 # Global ByteTrack instance (persistent tracking)
-byte_track = sv.ByteTrack(minimum_matching_threshold=0.5,lost_track_buffer = 30)
+byte_track = sv.ByteTrack(minimum_matching_threshold=0.4,lost_track_buffer = 50)
 
 # Frame queue for buffering
-frame_queue = queue.Queue(maxsize=10)
+frame_queue = queue.Queue()
 
 def getModel():
     print("Loading the Model")
@@ -18,21 +18,12 @@ def getModel():
     print("Model Successfully Loaded")
     return model
 
-def frame_reader(video_stream):
-    """
-    Continuously reads frames from the video stream into a buffer.
-    """
-    while True:
-        frame = video_stream.read()
-        if frame is not None:
-            if not frame_queue.full():
-                frame_queue.put(frame)
-        time.sleep(0.01)  # Avoids CPU overload
 
 def annotate_frame(frame, model):
     """
     Runs inference and tracks objects with ByteTrack.
     """
+
     bounding_box_annotator = sv.BoxAnnotator()
     label_annotator = sv.LabelAnnotator()
 
@@ -40,8 +31,6 @@ def annotate_frame(frame, model):
     result = model.infer(frame)[0]
     detections = sv.Detections.from_inference(result)
 
-    # Filter detections (ignore low confidence objects)
-    detections = detections[detections.confidence > 0.3]
 
     # Use ByteTrack for tracking
     detections = byte_track.update_with_detections(detections=detections)
@@ -49,8 +38,8 @@ def annotate_frame(frame, model):
     labels = [f"ID: {tracker_id}" for tracker_id in detections.tracker_id]
 
     # Annotate frame
-    annotated_frame = bounding_box_annotator.annotate(scene=frame, detections=detections)
-    annotated_frame = label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
+    # annotated_frame = bounding_box_annotator.annotate(scene=frame, detections=detections)
+    annotated_frame = label_annotator.annotate(scene=frame, detections=detections, labels=labels)
 
     return annotated_frame
 
@@ -58,15 +47,9 @@ def stream_live_video(youtube_url, model):
     url = get_stream_url(youtube_url)
     video_stream = LiveCapture(url).start()
 
-    # Start frame reader in a separate thread
-    reader_thread = threading.Thread(target=frame_reader, args=(video_stream,))
-    reader_thread.daemon = True
-    reader_thread.start()
-    print("Loading Frames")
     while True:
-        print(frame_queue.qsize())
-        if not frame_queue.empty():
-            frame = frame_queue.get()
+        frame = video_stream.read()
+        if frame is not None:
             frame = cv2.resize(frame, (640, 360))
             # annotated_frame = annotate_frame(frame, model)
             cv2.imshow("Live Stream", frame)
@@ -77,6 +60,6 @@ def stream_live_video(youtube_url, model):
     video_stream.stop()
     cv2.destroyAllWindows()
 
-YOUTUBE_URL = "https://www.youtube.com/watch?v=5_XSYlAfJZM"
+YOUTUBE_URL = "https://youtu.be/wqctLW0Hb_0?list=PLcQZGj9lFR7y5WikozDSrdk6UCtAnM9mB"
 model = getModel()
 stream_live_video(YOUTUBE_URL, model)

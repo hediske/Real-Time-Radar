@@ -5,15 +5,15 @@ import time
 from LiveCapturing import LiveCapture, get_stream_infos
 from inference.models.utils import get_roboflow_model
 import supervision as sv
-
-
-
+from supervision.utils.video import VideoInfo
+import numpy as np
     
 
 
 class VideoProcessor:
-    def __init__(self, model_path ="yolov8x-640", target_width = 25, target_height = 250 , iou_threshold = 0.7 ,confidence = 0.3):
+    def __init__(self, model_path ="yolov8x-640", source = None ,  target_width = 25, target_height = 250 , iou_threshold = 0.3 ,confidence = 0.3):
         self.iou = iou_threshold
+        self.source = source
         self.confidence = confidence
         self.target_width = target_width
         self.target_height = target_height
@@ -22,6 +22,15 @@ class VideoProcessor:
         self.label_annotator = None
         self.trace_annotator = None
         self.model = self.setup_model(model_path)
+
+    def setup_confidence(self,confidence):
+        self.confidence = confidence
+
+    def setup_iou_threshod(self,iou):
+        self.iou = iou
+
+    def setup_source(self,source):
+        self.source = source
 
     def setup_model(self,model_path):
         print(f"Setting the Model {model_path}")
@@ -56,8 +65,12 @@ class VideoProcessor:
         print("inference = ", time.time() - _start)
         detections = sv.Detections.from_inference(result)
         detections = detections[detections.confidence > self.confidence]
+        mask = np.isin(detections.class_id, [7, 2])
+        detections = detections[mask]
         #Non max merging for overlaps
         detections = detections.with_nmm(self.iou)
+        #Add polygon filtering
+        detections = 
         # Use ByteTrack for tracking
         detections = self.byte_track.update_with_detections(detections=detections)
 
@@ -73,8 +86,7 @@ class VideoProcessor:
     def process_frame(self,frame,fps):
         start_time = time.time()
         annotated_frame = self.annotate_frame(frame)
-        annotated_frame = cv2.resize(annotated_frame, (640, 360))
-        cv2.imshow("Local Video", annotated_frame)
+        cv2.imshow("Local Video", cv2.resize(annotated_frame, (640, 360)))
         end_time = time.time()
         time.sleep(max(0, 1 / fps - end_time + start_time))
         return annotated_frame
@@ -87,28 +99,39 @@ class VideoProcessor:
         )
         text_scale = sv.calculate_optimal_text_scale(resolution_wh=(infos["width"], infos["height"]))
         fps = infos["fps"]
-        self.setup_annotators(thickness, text_scale, fps)
+        self.setup_annotators((int)(thickness/5), text_scale, fps)
         self.setup_byte_track(fps)
 
         video_stream = LiveCapture(infos["url"]).start()
 
         if target is not None:
+            infos = VideoInfo(infos["width"],infos["height"],infos["fps"],None)
             with sv.VideoSink(target_path=target, video_info=infos) as sink:
                 while True:
-                    frame = video_stream.read()
+                    frame,stream_status = video_stream.read()
+                    if stream_status == False:
+                        print("Stream ended. Exiting loop.")
+                        break
                     if frame is not None:
                         annotated_frame= self.process_frame(frame,fps)
                         sink.write_frame(annotated_frame)
+
                     if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
                             break
+                cv2.destroyAllWindows()
+
         else:
             while True:
-                frame = video_stream.read()
+                frame,stream_status = video_stream.read()
+                if stream_status == False:
+                    print("Stream ended. Exiting loop.")
+                    break
                 if frame is not None:
-                        self.process_frame(frame,fps)
+                    self.process_frame(frame,fps)
+                
                 if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
                     break
-        cv2.destroyAllWindows()
+            cv2.destroyAllWindows()
 
     def stream_local_video(self, path,target = None):
         video_infos = sv.VideoInfo.from_video_path(video_path=path)
@@ -130,12 +153,14 @@ class VideoProcessor:
                     sink.write_frame(annotated_frame)
                     if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
                         break
+                cv2.destroyAllWindows()
+
         else:
             for frame in frame_generator:
                 self.process_frame(frame, fps)
                 if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
                     break
-        cv2.destroyAllWindows()
+            cv2.destroyAllWindows()
 
 
 

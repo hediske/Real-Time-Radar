@@ -12,7 +12,11 @@ import supervision as sv
 
 
 class VideoProcessor:
-    def __init__(self, model_path):
+    def __init__(self, model_path,source , target_width = 25, target_height = 250 , iou_threshold = 0.7 ,confidence = 0.3):
+        self.iou = iou_threshold
+        self.confidence = confidence
+        self.target_width = target_width
+        self.target_height = target_height
         self.byte_track = None
         self.box_annotator = None
         self.label_annotator = None
@@ -35,7 +39,7 @@ class VideoProcessor:
 
     def setup_byte_track(self, fps):
         self.byte_track = sv.ByteTrack(
-            minimum_matching_threshold=0.4,
+            track_activation_threshold=self.confidence,
             lost_track_buffer=50,
             frame_rate=fps
         )
@@ -46,7 +50,9 @@ class VideoProcessor:
         result = self.model.infer(frame)[0]
         print("inference = ", time.time() - _start)
         detections = sv.Detections.from_inference(result)
-
+        detections = detections[detections.confidence > self.confidence]
+        #Non max merging for overlaps
+        detections = detections.with_nmm(self.iou)
         # Use ByteTrack for tracking
         detections = self.byte_track.update_with_detections(detections=detections)
 
@@ -102,14 +108,4 @@ class VideoProcessor:
             self.process_frame(frame,fps)
             if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
                 break
-
-if __name__ == "__main__":
-    model_path = "yolov8x-640"
-    video_processor = VideoProcessor(model_path)
-
-    YOUTUBE_URL = "https://youtu.be/wqctLW0Hb_0?list=PLcQZGj9lFR7y5WikozDSrdk6UCtAnM9mB"
-    video_processor.stream_live_video(YOUTUBE_URL)
-
-    # path = "./data/vehicles.mp4"
-    # video_processor.stream_local_video(path)
 

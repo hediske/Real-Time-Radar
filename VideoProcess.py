@@ -21,6 +21,7 @@ class VideoProcessor:
         self.box_annotator = None
         self.label_annotator = None
         self.trace_annotator = None
+        self.polygon = None
         self.model = self.setup_model(model_path)
 
     def setup_confidence(self,confidence):
@@ -37,6 +38,7 @@ class VideoProcessor:
         model = get_roboflow_model(model_path)
         print("Model Loaded Succesfully")
         return model
+    
 
     def setup_annotators(self, thickness, text_scale, fps):
         self.box_annotator = sv.BoxAnnotator(thickness=thickness)
@@ -58,6 +60,10 @@ class VideoProcessor:
             frame_rate=fps
         )
 
+    def setup_polygon(self,resolution):
+        if self.source is not None : 
+            self.polygon = sv.PolygonZone(self.source,frame_resolution_wh=resolution)
+
     def annotate_frame(self, frame):
         # Run model inference
         _start = time.time()
@@ -70,7 +76,8 @@ class VideoProcessor:
         #Non max merging for overlaps
         detections = detections.with_nmm(self.iou)
         #Add polygon filtering
-        detections = 
+        if self.polygon is not None : 
+            detections = detections[self.polygon.trigger(detections=detections)]
         # Use ByteTrack for tracking
         detections = self.byte_track.update_with_detections(detections=detections)
 
@@ -78,6 +85,7 @@ class VideoProcessor:
 
         # Annotate frame
         annotated_frame = self.box_annotator.annotate(scene=frame, detections=detections)
+        annotated_frame = sv.draw_polygon(scene=annotated_frame,polygon=self.source)
         annotated_frame = self.label_annotator.annotate(scene=frame, detections=detections, labels=labels)
 
         return annotated_frame
@@ -100,6 +108,7 @@ class VideoProcessor:
         text_scale = sv.calculate_optimal_text_scale(resolution_wh=(infos["width"], infos["height"]))
         fps = infos["fps"]
         self.setup_annotators((int)(thickness/5), text_scale, fps)
+        self.setup_polygon((infos["height"], infos["width"]))
         self.setup_byte_track(fps)
 
         video_stream = LiveCapture(infos["url"]).start()
@@ -142,6 +151,7 @@ class VideoProcessor:
         text_scale = sv.calculate_optimal_text_scale(resolution_wh=video_infos.resolution_wh)
         fps = video_infos.fps
         self.setup_annotators(thickness, text_scale, fps)
+        self.setup_polygon(video_infos.resolution_wh)
         self.setup_byte_track(fps)
 
         frame_generator = sv.get_video_frames_generator(source_path=path)

@@ -12,7 +12,7 @@ import supervision as sv
 
 
 class VideoProcessor:
-    def __init__(self, model_path,source , target_width = 25, target_height = 250 , iou_threshold = 0.7 ,confidence = 0.3):
+    def __init__(self, model_path ="yolov8x-640", target_width = 25, target_height = 250 , iou_threshold = 0.7 ,confidence = 0.3):
         self.iou = iou_threshold
         self.confidence = confidence
         self.target_width = target_width
@@ -21,8 +21,13 @@ class VideoProcessor:
         self.box_annotator = None
         self.label_annotator = None
         self.trace_annotator = None
-        self.model = get_roboflow_model(model_path)
-        self.frame_queue = queue.Queue()
+        self.model = self.setup_model(model_path)
+
+    def setup_model(self,model_path):
+        print(f"Setting the Model {model_path}")
+        model = get_roboflow_model(model_path)
+        print("Model Loaded Succesfully")
+        return model
 
     def setup_annotators(self, thickness, text_scale, fps):
         self.box_annotator = sv.BoxAnnotator(thickness=thickness)
@@ -72,8 +77,9 @@ class VideoProcessor:
         cv2.imshow("Local Video", annotated_frame)
         end_time = time.time()
         time.sleep(max(0, 1 / fps - end_time + start_time))
+        return annotated_frame
 
-    def stream_live_video(self, youtube_url):
+    def stream_live_video(self, youtube_url,target = None):
         infos = get_stream_infos(youtube_url)
         print(infos)
         thickness = sv.calculate_optimal_line_thickness(
@@ -85,16 +91,28 @@ class VideoProcessor:
         self.setup_byte_track(fps)
 
         video_stream = LiveCapture(infos["url"]).start()
-        while True:
-            frame = video_stream.read()
-            if frame is not None:
-                self.process_frame(frame,fps)
-            if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
+
+        if target is not None:
+            with sv.VideoSink(target_path=target, video_info=infos) as sink:
+                while True:
+                    frame = video_stream.read()
+                    if frame is not None:
+                        annotated_frame= self.process_frame(frame,fps)
+                        sink.write_frame(annotated_frame)
+                    if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
+                            break
+        else:
+            while True:
+                frame = video_stream.read()
+                if frame is not None:
+                        self.process_frame(frame,fps)
+                if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
                     break
+        cv2.destroyAllWindows()
 
-
-    def stream_local_video(self, path):
+    def stream_local_video(self, path,target = None):
         video_infos = sv.VideoInfo.from_video_path(video_path=path)
+        print(video_infos)
         thickness = sv.calculate_optimal_line_thickness(
             resolution_wh=video_infos.resolution_wh
         )
@@ -104,8 +122,20 @@ class VideoProcessor:
         self.setup_byte_track(fps)
 
         frame_generator = sv.get_video_frames_generator(source_path=path)
-        for frame in frame_generator:
-            self.process_frame(frame,fps)
-            if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
-                break
+
+        if target is not None:
+            with sv.VideoSink(target_path=target, video_info=video_infos) as sink:
+                for frame in frame_generator:
+                    annotated_frame = self.process_frame(frame,fps)
+                    sink.write_frame(annotated_frame)
+                    if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
+                        break
+        else:
+            for frame in frame_generator:
+                self.process_frame(frame, fps)
+                if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
+                    break
+        cv2.destroyAllWindows()
+
+
 

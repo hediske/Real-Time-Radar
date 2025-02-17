@@ -101,7 +101,6 @@ class VideoProcessor:
 
     def stream_live_video(self, youtube_url,target = None):
         infos = get_stream_infos(youtube_url)
-        print(infos)
         thickness = sv.calculate_optimal_line_thickness(
             resolution_wh=(infos["height"], infos["width"])
         )

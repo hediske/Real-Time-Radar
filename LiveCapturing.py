@@ -5,7 +5,7 @@ import threading
 import queue
 import time
 
-def get_stream_url(youtube_url):
+def get_stream_infos(youtube_url):
     ydl_opts = {
         "format": "best",
         # "quiet": True,
@@ -15,19 +15,17 @@ def get_stream_url(youtube_url):
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(youtube_url, download=False)
-        print(info)
-        return info["url"]
+        return {"url":info["url"], "fps":info["fps"], "width":info["width"], "height":info["height"]}
     
 
 class LiveCapture:
 
-    def __init__(self, url,fps, max_buffer_size=100):
+    def __init__(self, url, max_buffer_size=100):
         self.url = url
         self.cap = cv2.VideoCapture(self.url, cv2.CAP_FFMPEG)
         self.stopped = False
         if not self.isOpened():
             raise FileNotFoundError("Stream not found")
-        self.fps = fps
         self.frame_queue = queue.Queue(maxsize=max_buffer_size)
 
     def start(self):
@@ -42,11 +40,12 @@ class LiveCapture:
         while not self.stopped:
             ret, frame = self.cap.read()
             if ret:
-                if not self.frame_queue.full():
-                    self.frame_queue.put(frame)  # Add frame to queue
-                else:
-                    self.frame_queue.get()  # Remove oldest frame
-                    self.frame_queue.put(frame)  # Add new frame
+                while True:
+                    if not self.frame_queue.full():
+                        self.frame_queue.put(frame)  # Add frame to queue
+                        break
+                    else:
+                        time.sleep(10)
 
     def stop(self):
         self.stopped = True

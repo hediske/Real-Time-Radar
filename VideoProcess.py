@@ -1,3 +1,4 @@
+from collections import defaultdict, deque
 import cv2
 import yt_dlp
 import queue
@@ -22,9 +23,13 @@ class VideoProcessor:
         self.box_annotator = None
         self.label_annotator = None
         self.trace_annotator = None
+        self.coordinates = None
         self.polygon = None
         self.view_transformer = None
         self.model = self.setup_model(model_path)
+
+    def setup_coordinates(self,fps):
+        self.coordinates = defaultdict(lambda: deque(maxlen=fps))
 
     def setup_confidence(self,confidence):
         self.confidence = confidence
@@ -68,11 +73,30 @@ class VideoProcessor:
             frame_rate=fps
         )
 
+    def get_labels(self,points,tracker_ids,fps):
+        if points is None :
+            return [f"#{tracker_id}" for tracker_id in tracker_ids]
+        for tracker_id, [_, y] in zip(tracker_ids, points):
+                self.coordinates[tracker_id].append(y)
+        labels = []
+        for tracker_id in tracker_ids:
+            # Ignoring The frames unless one third of fps number is collected
+            if len(self.coordinates[tracker_id]) < fps / 3:
+                labels.append(f"#{tracker_id}")
+            else:
+                coordinate_start = self.coordinates[tracker_id][-1]
+                coordinate_end = self.coordinates[tracker_id][0]
+                distance = abs(coordinate_start - coordinate_end)
+                time = len(self.coordinates[tracker_id]) / fps
+                speed = distance / time * 3.6
+                labels.append(f"#{tracker_id} {int(speed)} km/h")
+        return labels
+
     def setup_polygon(self):
         if self.source is not None : 
             self.polygon = sv.PolygonZone(self.source)
 
-    def annotate_frame(self, frame):
+    def annotate_frame(self, frame , fps):
         # Run model inference
         _start = time.time()
         result = self.model.infer(frame)[0]
@@ -95,14 +119,15 @@ class VideoProcessor:
         detections = self.byte_track.update_with_detections(detections=detections)
 
 
-        # Getting the labels for the detections
-        labels = [f"ID: {tracker_id}" for tracker_id in detections.tracker_id]
-        # GEtting the coordinates od the points for the detected  objects
+        # Getting the points for the detections and speed Estimation
+        points = None
         if self.target is not None and self.source is not None :
             points = detections.get_anchors_coordinates(
                             anchor=sv.Position.BOTTOM_CENTER)
             points = self.view_transformer.transform_points(points=points).astype(int)
-            labels = [f"x : {x} , y: {y}" for [x,y] in points]
+        #Getting the labels and speed claculation
+        labels = self.get_labels(points, detections.tracker_id,fps)
+
         # Annotate frame
         annotated_frame = self.box_annotator.annotate(scene=frame, detections=detections)
         annotated_frame = sv.draw_polygon(scene=annotated_frame,polygon=self.source)
@@ -114,7 +139,7 @@ class VideoProcessor:
     def process_frame(self,frame,fps):
         start_time = time.time()
         frame  =  cv2.resize(frame, (640, 360))
-        annotated_frame = self.annotate_frame(frame)
+        annotated_frame = self.annotate_frame(frame,fps)
         cv2.imshow("Local Video",annotated_frame )
         end_time = time.time()
         time.sleep(max(0, 1 / fps - end_time + start_time))
@@ -131,7 +156,7 @@ class VideoProcessor:
         self.setup_polygon()
         self.setup_view_transfromer()
         self.setup_byte_track(fps)
-
+        self.setup_coordinates(fps)
         video_stream = LiveCapture(infos["url"]).start()
 
         if target is not None:
@@ -166,7 +191,7 @@ class VideoProcessor:
     def stream_local_video(self, path,target = None):
         video_infos = sv.VideoInfo.from_video_path(video_path=path)
         video_infos = VideoInfo(640,360,video_infos.fps,video_infos.total_frames)
-        print(video_infos)
+        print(video_infos.resolution_wh)
         thickness = sv.calculate_optimal_line_thickness(
             resolution_wh=video_infos.resolution_wh
         )
@@ -176,7 +201,7 @@ class VideoProcessor:
         self.setup_polygon()
         self.setup_view_transfromer()
         self.setup_byte_track(fps)
-
+        self.setup_coordinates(fps)
         frame_generator = sv.get_video_frames_generator(source_path=path)
 
         if target is not None:

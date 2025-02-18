@@ -11,9 +11,10 @@ import numpy as np
 
 
 class VideoProcessor:
-    def __init__(self, model_path ="yolov8x-640", source = None ,  target_width = 25, target_height = 250 , iou_threshold = 0.3 ,confidence = 0.3):
+    def __init__(self, model_path ="yolov8x-640", source = None , target = None, target_width = 25, target_height = 250 , iou_threshold = 0.3 ,confidence = 0.3):
         self.iou = iou_threshold
         self.source = source
+        self.target = target 
         self.confidence = confidence
         self.target_width = target_width
         self.target_height = target_height

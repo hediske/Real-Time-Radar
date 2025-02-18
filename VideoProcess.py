@@ -1,7 +1,5 @@
 from collections import defaultdict, deque
 import cv2
-import yt_dlp
-import queue
 import time
 from LiveCapturing import LiveCapture, get_stream_infos
 from inference.models.utils import get_roboflow_model

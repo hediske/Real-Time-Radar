@@ -11,6 +11,6 @@ if __name__ == "__main__":
     # YOUTUBE_URL = "https://youtu.be/Gr0HpDM8Ki8"
     # video_processor.stream_live_video(YOUTUBE_URL,target = "./data/output2.mp4")
 
-    path = "./data/vehicles.mp4"
+    path = "./data/vehicles2.mp4"
     video_processor.stream_local_video(path,"./data/output.mp4")
 

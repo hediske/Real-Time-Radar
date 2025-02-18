@@ -7,22 +7,23 @@ from inference.models.utils import get_roboflow_model
 import supervision as sv
 from supervision.utils.video import VideoInfo
 import numpy as np
+
+from ViewTransformer import ViewTransformer
     
 
 
 class VideoProcessor:
-    def __init__(self, model_path ="yolov8x-640", source = None , target = None, target_width = 25, target_height = 250 , iou_threshold = 0.3 ,confidence = 0.3):
+    def __init__(self, model_path ="yolov8x-640", source = None , target = None , iou_threshold = 0.3 ,confidence = 0.3):
         self.iou = iou_threshold
         self.source = source
         self.target = target 
         self.confidence = confidence
-        self.target_width = target_width
-        self.target_height = target_height
         self.byte_track = None
         self.box_annotator = None
         self.label_annotator = None
         self.trace_annotator = None
         self.polygon = None
+        self.view_transformer = None
         self.model = self.setup_model(model_path)
 
     def setup_confidence(self,confidence):
@@ -34,6 +35,9 @@ class VideoProcessor:
     def setup_source(self,source):
         self.source = source
 
+    def setup_view_transfromer(self):
+        if self.target is not None and self.source is not None :
+            self.view_transformer = ViewTransformer(self.source, self.target)
     def setup_target(self,target):
         self.target= target
 
@@ -73,20 +77,32 @@ class VideoProcessor:
         _start = time.time()
         result = self.model.infer(frame)[0]
         print("inference = ", time.time() - _start)
+
+        #Getting the Detections and filtering them
         detections = sv.Detections.from_inference(result)
         detections = detections[detections.confidence > self.confidence]
         mask = np.isin(detections.class_id, [7, 2])
         detections = detections[mask]
+
         #Non max merging for overlaps
         detections = detections.with_nmm(self.iou)
+
         #Add polygon filtering
         if self.polygon is not None : 
             detections = detections[self.polygon.trigger(detections=detections)]
+
         # Use ByteTrack for tracking
         detections = self.byte_track.update_with_detections(detections=detections)
 
-        labels = [f"ID: {tracker_id}" for tracker_id in detections.tracker_id]
 
+        # Getting the labels for the detections
+        labels = [f"ID: {tracker_id}" for tracker_id in detections.tracker_id]
+        # GEtting the coordinates od the points for the detected  objects
+        if self.target is not None and self.source is not None :
+            points = detections.get_anchors_coordinates(
+                            anchor=sv.Position.BOTTOM_CENTER)
+            points = self.view_transformer.transform_points(points=points).astype(int)
+            labels = [f"x : {x} , y: {y}" for [x,y] in points]
         # Annotate frame
         annotated_frame = self.box_annotator.annotate(scene=frame, detections=detections)
         annotated_frame = sv.draw_polygon(scene=annotated_frame,polygon=self.source)
@@ -113,6 +129,7 @@ class VideoProcessor:
         fps = infos["fps"]
         self.setup_annotators((int)(thickness/5), text_scale, fps)
         self.setup_polygon()
+        self.setup_view_transfromer()
         self.setup_byte_track(fps)
 
         video_stream = LiveCapture(infos["url"]).start()
@@ -155,8 +172,9 @@ class VideoProcessor:
         )
         text_scale = sv.calculate_optimal_text_scale(resolution_wh=video_infos.resolution_wh)
         fps = video_infos.fps
-        self.setup_annotators(thickness, text_scale, fps)
+        self.setup_annotators((int)(thickness/5), text_scale, fps)
         self.setup_polygon()
+        self.setup_view_transfromer()
         self.setup_byte_track(fps)
 
         frame_generator = sv.get_video_frames_generator(source_path=path)

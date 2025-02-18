@@ -1,6 +1,6 @@
 from VideoProcess import VideoProcessor
 import numpy as np
-SOURCE = np.array([[1252, 787], [2298, 803], [5039, 2159], [-550, 2159]])
+SOURCE = np.array([[229, 115], [351, 115], [920, 370] ,[-150, 370]])
 
 
 if __name__ == "__main__":
@@ -11,6 +11,6 @@ if __name__ == "__main__":
     # YOUTUBE_URL = "https://youtu.be/Gr0HpDM8Ki8"
     # video_processor.stream_live_video(YOUTUBE_URL,target = "./data/output2.mp4")
 
-    path = "./data/vehicles2.mp4"
+    path = "./data/vehicles.mp4"
     video_processor.stream_local_video(path,"./data/output.mp4")
 

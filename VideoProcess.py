@@ -60,9 +60,9 @@ class VideoProcessor:
             frame_rate=fps
         )
 
-    def setup_polygon(self,resolution):
+    def setup_polygon(self):
         if self.source is not None : 
-            self.polygon = sv.PolygonZone(self.source,frame_resolution_wh=resolution)
+            self.polygon = sv.PolygonZone(self.source)
 
     def annotate_frame(self, frame):
         # Run model inference
@@ -93,8 +93,9 @@ class VideoProcessor:
 
     def process_frame(self,frame,fps):
         start_time = time.time()
+        frame  =  cv2.resize(frame, (640, 360))
         annotated_frame = self.annotate_frame(frame)
-        cv2.imshow("Local Video", cv2.resize(annotated_frame, (640, 360)))
+        cv2.imshow("Local Video",annotated_frame )
         end_time = time.time()
         time.sleep(max(0, 1 / fps - end_time + start_time))
         return annotated_frame
@@ -107,7 +108,7 @@ class VideoProcessor:
         text_scale = sv.calculate_optimal_text_scale(resolution_wh=(infos["width"], infos["height"]))
         fps = infos["fps"]
         self.setup_annotators((int)(thickness/5), text_scale, fps)
-        self.setup_polygon((infos["height"], infos["width"]))
+        self.setup_polygon()
         self.setup_byte_track(fps)
 
         video_stream = LiveCapture(infos["url"]).start()
@@ -143,6 +144,7 @@ class VideoProcessor:
 
     def stream_local_video(self, path,target = None):
         video_infos = sv.VideoInfo.from_video_path(video_path=path)
+        video_infos = VideoInfo(640,360,video_infos.fps,video_infos.total_frames)
         print(video_infos)
         thickness = sv.calculate_optimal_line_thickness(
             resolution_wh=video_infos.resolution_wh
@@ -150,7 +152,7 @@ class VideoProcessor:
         text_scale = sv.calculate_optimal_text_scale(resolution_wh=video_infos.resolution_wh)
         fps = video_infos.fps
         self.setup_annotators(thickness, text_scale, fps)
-        self.setup_polygon(video_infos.resolution_wh)
+        self.setup_polygon()
         self.setup_byte_track(fps)
 
         frame_generator = sv.get_video_frames_generator(source_path=path)

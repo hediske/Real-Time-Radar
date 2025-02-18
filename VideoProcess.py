@@ -34,6 +34,9 @@ class VideoProcessor:
     def setup_source(self,source):
         self.source = source
 
+    def setup_target(self,target):
+        self.target= target
+
     def setup_model(self,model_path):
         print(f"Setting the Model {model_path}")
         model = get_roboflow_model(model_path)

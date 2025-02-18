@@ -1,11 +1,11 @@
 from VideoProcess import VideoProcessor
 import numpy as np
 SOURCE = np.array([[229, 115], [351, 115], [920, 370] ,[-150, 370]])
-
+TARGET = np.array([[0,0], [24,0], [24,249], [0,249]])
 
 if __name__ == "__main__":
     model_path = "yolov8x-640"
-    video_processor = VideoProcessor(model_path,source = SOURCE)
+    video_processor = VideoProcessor(model_path,source = SOURCE , target = TARGET)
 
     # YOUTUBE_URL = "https://youtu.be/wqctLW0Hb_0?list=PLcQZGj9lFR7y5WikozDSrdk6UCtAnM9mB"
     # YOUTUBE_URL = "https://youtu.be/Gr0HpDM8Ki8"

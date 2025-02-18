@@ -221,4 +221,8 @@ class VideoProcessor:
             cv2.destroyAllWindows()
 
 
-
+    def stream_video(self , type, path , target = None):
+        if(type == 'live'):
+            self.stream_live_video(path , target)
+        else : 
+            self.stream_local_video(path , target)

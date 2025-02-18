@@ -38,21 +38,22 @@ def display_preview(frame):
 
 
 def test_source (source,frame):
-    frame = cv2.resize(frame, (640, 360))
-    polygon = sv.PolygonZone(source)
-    frame = cv2.polylines(
-        frame, [source], isClosed=True,color=(255, 0, 0), thickness=2
-    )
-    # frame = sv.draw_polygon(scene=frame ,polygon=polygon)
+    frame = get_source_frame(source , frame)
     cv2.imshow("Frame", frame)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+def get_source_frame(source,frame):
+    frame = cv2.resize(frame, (640, 360))
+    frame = cv2.polylines(
+        frame, [source], isClosed=True,color=(255, 0, 0), thickness=2
+    )
+    return frame
 
 
 
-SOURCE = np.array([[229, 115], [351, 115], [920, 370] ,[-150, 370]])
+# SOURCE = np.array([[229, 115], [351, 115], [920, 370] ,[-150, 370]])
 
-frame = get_preview_frame("./data/vehicles.mp4","local")
-# display_preview(frame)
-test_source(SOURCE,frame)
+# frame = get_preview_frame("./data/vehicles.mp4","local")
+# # display_preview(frame)
+# test_source(SOURCE,frame)

@@ -1,6 +1,8 @@
 import streamlit as st
 import cv2
 import numpy as np
+import tempfile
+import os
 from VideoProcess import VideoProcessor
 from preview import get_preview_frame, get_source_frame
 from PIL import Image
@@ -16,14 +18,12 @@ if "current_confidence" not in st.session_state:
     st.session_state.current_confidence = None
 if "processing" not in st.session_state:
     st.session_state.processing = False
+if "temp_video_path" not in st.session_state:
+    st.session_state.temp_video_path = None
 
-
-def get_image_from_frame (frame):
-    # FRAME_WINDOW = st.image([])
+def get_image_from_frame(frame):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    pil_img = Image.fromarray(frame)
-    # FRAME_WINDOW.image(pil_img)
-    return pil_img
+    return Image.fromarray(frame)
 
 def get_processor(model_type, confidence, iou):
     if (st.session_state.processor is None or 
@@ -58,10 +58,8 @@ options = {
     "Local File (Local)": "local"
 }
 
-# Disable button while processing
 button_disabled = st.session_state.processing
 
-# Button to start processing
 if st.sidebar.button("Start Processing", disabled=button_disabled):
     st.session_state.processing = True
     try:
@@ -80,27 +78,34 @@ else:
     st.write("Current Confidence for the ByteTrack Algorithm:", st.session_state.current_confidence)
     st.write("Current IoU Threshold", st.session_state.current_iou)
 
-    # Input for video source (YouTube or local path)
     source_option = st.radio("Select Video Source", list(options.keys()))
     source_value = options[source_option]
 
-    # If YouTube is selected, take a URL input
     if source_value == "live":
         source = st.text_input("Enter YouTube URL")
     else:
         uploaded_file = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"])
-        source = None
+        if uploaded_file is not None:
+            if st.session_state.temp_video_path is not None:
+                os.remove(st.session_state.temp_video_path)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_file:
+                temp_file.write(uploaded_file.read())
+                st.session_state.temp_video_path = temp_file.name
+            source = st.session_state.temp_video_path
+        else:
+            source = None
 
     if st.button("Preview Video"):
-        frame = get_preview_frame(source, source_value)
-        if st.button("Show Polygon Zone"):
-            source_frame = get_source_frame(frame, np.array([[229, 115], [351, 115], [920, 370], [-150, 370]]))
-            # source_frame = cv2.cvtColor(source_frame, cv2.COLOR_BGR2RGB)
-            st.image(source_frame, caption="Processed Image")
+        if source is None:
+            st.error("Please provide a valid video source.")
         else:
-            image_preview = get_image_from_frame(frame)
-            PREVIEW = st.image(image_preview)
+            frame = get_preview_frame(source, source_value)
+            if st.button("Show Polygon Zone"):
+                source_frame = get_source_frame(frame, np.array([[229, 115], [351, 115], [920, 370], [-150, 370]]))
+                st.image(source_frame, caption="Processed Image")
+            else:
+                image_preview = get_image_from_frame(frame)
+                st.image(image_preview)
 
-    
     if st.button("Process Video"):
         pass

@@ -8,7 +8,7 @@ def get_coordinates(event, x, y, flags, param):
         print(f"Clicked at: ({x}, {y})")
 
 
-def get_preview_frame(url, type) :
+def get_preview_frame(url, type="local") :
     frame = None
     if type == "local":
         cap = cv2.VideoCapture(url)
@@ -30,7 +30,10 @@ def get_preview_frame(url, type) :
                 break 
     return frame    
     
-def display_preview(frame):
+def display_preview(url, type="local"):
+    frame = get_preview_frame(url , type)
+    if frame is None : 
+        return
     cv2.imshow("Frame", cv2.resize(frame, (640, 360)))
     cv2.setMouseCallback("Frame", get_coordinates)
     cv2.waitKey(0)

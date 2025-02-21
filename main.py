@@ -1,6 +1,7 @@
 from VideoProcess import VideoProcessor
 import numpy as np
-SOURCE = np.array([[380, 0], [351, 0], [920, 370] ,[-150, 370]])
+from preview import get_preview_frame,display_preview
+SOURCE = np.array([[384, 0], [700, 0], [617, 360] ,[-50, 360]])
 TARGET = np.array([[0,0], [24,0], [24,249], [0,249]])
 
 if __name__ == "__main__":
@@ -13,4 +14,4 @@ if __name__ == "__main__":
 
     # path = "./data/vehicles2.mp4"
     # video_processor.stream_local_video(path,"./data/output.mp4")
-
+    # display_preview(YOUTUBE_URL,"live")

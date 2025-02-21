@@ -50,7 +50,6 @@ class VideoProcessor:
         print("Model Loaded Succesfully")
         return model
     
-
     def setup_annotators(self, thickness, text_scale, fps):
         self.box_annotator = sv.BoxAnnotator(thickness=thickness)
         self.label_annotator = sv.LabelAnnotator(
@@ -134,16 +133,17 @@ class VideoProcessor:
         return annotated_frame
 
 
-    def process_frame(self,frame,fps):
+    def process_frame(self, frame, fps , display = False):
         start_time = time.time()
         frame  =  cv2.resize(frame, (640, 360))
         annotated_frame = self.annotate_frame(frame,fps)
-        cv2.imshow("Local Video",annotated_frame )
-        end_time = time.time()
-        time.sleep(max(0, 1 / fps - end_time + start_time))
+        if display == True:
+            cv2.imshow("Local Video",annotated_frame )
+            end_time = time.time()
+            time.sleep(max(0, 1 / fps - end_time + start_time))
         return annotated_frame
 
-    def stream_live_video(self, youtube_url,target = None):
+    def stream_live_video(self, youtube_url,target = None, display= False):
         infos = get_stream_infos(youtube_url)
         thickness = sv.calculate_optimal_line_thickness(
             resolution_wh=(infos["height"], infos["width"])
@@ -180,13 +180,13 @@ class VideoProcessor:
                     print("Stream ended. Exiting loop.")
                     break
                 if frame is not None:
-                    self.process_frame(frame,fps)
+                    self.process_frame(frame,fps,display)
                 
                 if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
                     break
             cv2.destroyAllWindows()
 
-    def stream_local_video(self, path,target = None):
+    def stream_local_video(self, path,target = None,display = False):
         video_infos = sv.VideoInfo.from_video_path(video_path=path)
         video_infos = VideoInfo(640,360,video_infos.fps,video_infos.total_frames)
         print(video_infos.resolution_wh)
@@ -219,7 +219,7 @@ class VideoProcessor:
             cv2.destroyAllWindows()
 
 
-    def stream_video(self , type, path , target = None):
+    def stream_video(self , type, path , target = None ,display = False):
         if(type == 'live'):
             self.stream_live_video(path , target)
         else : 

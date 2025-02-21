@@ -11,7 +11,7 @@ def get_stream_infos(youtube_url):
         # "quiet": True,
         "noplaylist": True,
         "buffer_size": "16M",
-        "downloader_args": {"ffmpeg_i": "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"},
+        "downloader_args": {"ffmpeg_i": "-reconnect 1 -threads 1 -reconnect_streamed 1 -reconnect_delay_max 5"},
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(youtube_url, download=False)
@@ -28,11 +28,13 @@ class LiveCapture:
         self.fail_count = 0
         self.stream_end = False
         self.max_failures = max_failures 
+        self.lock = threading.Lock()  # Add a mutex lock
+
         if not self.isOpened():
             raise FileNotFoundError("Stream not found")
         self.frame_queue = queue.Queue(maxsize=max_buffer_size)
 
-    def start(self):
+    def start(self):    
         print('Started Streaming frames from the video stream')
         thread = threading.Thread(target=self.update, daemon=True)
         thread.start()
@@ -47,7 +49,8 @@ class LiveCapture:
                         time.sleep(1)
     def update(self):
         while not self.stopped:
-            ret, frame = self.cap.read()
+            with self.lock:  # Lock before accessing self.cap
+                ret, frame = self.cap.read()
             
             if ret:
                 self.fail_count = 0 
@@ -65,7 +68,8 @@ class LiveCapture:
     def stop(self):
         self.stopped = True
         self.stream_end = True
-        self.cap.release()
+        with self.lock:
+            self.cap.release()
 
     def read(self):
         try:
@@ -77,4 +81,5 @@ class LiveCapture:
     
     def isOpened(self):
         print("Checking if the stream is opened")
-        return self.cap.isOpened()    
+        with self.lock:
+            return self.cap.isOpened()    

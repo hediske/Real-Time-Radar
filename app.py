@@ -20,7 +20,12 @@ if "processing" not in st.session_state:
     st.session_state.processing = False
 if "temp_video_path" not in st.session_state:
     st.session_state.temp_video_path = None
-
+if "current_frame" not in st.session_state:
+    st.session_state.current_frame = None
+if "source_points" not in st.session_state:
+    st.session_state.source_points = []
+if "target_points" not in st.session_state:
+    st.session_state.target_points = []
 def get_image_from_frame(frame):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     return Image.fromarray(frame)
@@ -65,18 +70,32 @@ if st.sidebar.button("Start Processing", disabled=button_disabled):
     try:
         with st.spinner('Loading the video Processor ...'):
             get_processor(model_type, confidence, iou_threshold)
-    except Exception:
+    except Exception as e:
         st.session_state.processing = False
-        st.error("Error loading the Video Processor! Try again later")
+        st.error(f"Error loading the Video Processor: {e}")
     st.session_state.processing = False
 
 if st.session_state.processor is None:
     st.error("Video Processor Not working. Please create a Processor")
 else:
-    st.success("Video Processor is UP")
-    st.write("Current Model Type:", st.session_state.current_model)
-    st.write("Current Confidence for the ByteTrack Algorithm:", st.session_state.current_confidence)
-    st.write("Current IoU Threshold", st.session_state.current_iou)
+    st.markdown(
+        f"""
+        <div style="font-size: small;">
+            <b>Current Model:</b> {st.session_state.current_model} | 
+            <b>Confidence:</b> {st.session_state.current_confidence} | 
+            <b>IoU Threshold:</b> {st.session_state.current_iou}
+        </div>
+        <br />
+        <br /> 
+        <br />
+
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Video Souce Loading
+
+    st.write("##### Video Souce Input")
 
     source_option = st.radio("Select Video Source", list(options.keys()))
     source_value = options[source_option]
@@ -84,6 +103,7 @@ else:
     if source_value == "live":
         source = st.text_input("Enter YouTube URL")
     else:
+        source = None
         uploaded_file = st.file_uploader("Upload a video file", type=["mp4", "avi", "mov"])
         if uploaded_file is not None:
             if st.session_state.temp_video_path is not None:
@@ -94,18 +114,68 @@ else:
             source = st.session_state.temp_video_path
         else:
             source = None
+    st.markdown(
+        f"""
+        <br />
+        <br /> 
+        <br />
+
+        """,
+        unsafe_allow_html=True
+    )
+
+
+    # Dynamic Polygon Coordinate Input
+    st.write("##### Polygon Coordinate Input")
+    col1, col2 = st.columns(2)
+    # SOURCE Column
+    with col1:
+        st.write("###### SOURCE Coordinates")
+        
+        # Input for adding new SOURCE coordinate
+        source_col1, source_col2 = st.columns(2)
+        source_x_val = source_col1.number_input("X Coordinate", value=0, step=1, key="source_x_input")
+        source_y_val = source_col2.number_input("Y Coordinate", value=0, step=1, key="source_y_input")
+
+        if source_col1.button("Add SOURCE Coordinate"):
+            st.session_state.source_points.append([source_x_val, source_y_val])
+        # Button to clear SOURCE coordinates
+        if source_col2.button("Clear SOURCE Coordinates"):
+            st.session_state.source_points.clear()
+        # Display SOURCE coordinates
+        st.write("Current SOURCE Coordinates:")
+        st.write(np.array(st.session_state.source_points))
+
+
+
+    # TARGET Column
+    with col2:
+        st.write("###### TARGET Coordinates")
+        
+        # Input for adding new TARGET coordinate
+        target_col1, target_col2 = st.columns(2)
+        target_x_val = target_col1.number_input("X Coordinate", value=0, step=1, key="target_x_input")
+        target_y_val = target_col2.number_input("Y Coordinate", value=0, step=1, key="target_y_input")
+
+        if target_col1.button("Add TARGET Coordinate"):
+            st.session_state.target_points.append([target_x_val, target_y_val])
+        # Button to clear TARGET coordinates
+        if target_col2.button("Clear TARGET Coordinates" , key="danger_button", help="This action is irreversible!"):
+            st.session_state.target_points.clear()
+        # Display TARGET coordinates
+        st.write("Current TARGET Coordinates:")
+        st.write(np.array(st.session_state.target_points))
+
 
     if st.button("Preview Video"):
-        if source is None:
+        if source is None or source == "":
             st.error("Please provide a valid video source.")
         else:
             frame = get_preview_frame(source, source_value)
-            if st.button("Show Polygon Zone"):
-                source_frame = get_source_frame(frame, np.array([[229, 115], [351, 115], [920, 370], [-150, 370]]))
-                st.image(source_frame, caption="Processed Image")
-            else:
-                image_preview = get_image_from_frame(frame)
-                st.image(image_preview)
+            st.session_state.current_frame = frame
+            source_frame = get_source_frame(frame=st.session_state.current_frame, source=np.array(st.session_state.source_points))
+            image_polygon = get_image_from_frame(source_frame)
+            st.image(image_polygon, caption="Processed Image with Polygon Zone")
 
     if st.button("Process Video"):
         pass

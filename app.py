@@ -6,7 +6,8 @@ import os
 from VideoProcess import VideoProcessor
 from preview import get_preview_frame, get_source_frame
 from PIL import Image
-
+import queue
+import threading
 # Initialize session state variables
 if "processor" not in st.session_state:
     st.session_state.processor = None
@@ -178,4 +179,36 @@ else:
             st.image(image_polygon, caption="Processed Image with Polygon Zone")
 
     if st.button("Process Video"):
-        pass
+        if source is None or source == "":
+            st.error("Please provide a valid video source.")
+        else:
+            st.session_state.processor.setup_source(np.array(st.session_state.source_points))
+            st.session_state.processor.setup_target(np.array(st.session_state.target_points))
+
+            # Start video processing in a separate thread
+            processing_thread = threading.Thread(
+                target=st.session_state.processor.stream_video,
+                args=(source_value, source)
+            )
+            processing_thread.start()
+
+            # Show a spinner while waiting for infos
+            with st.spinner("Fetching video information..."):
+                try:
+                    # Wait for infos to be populated (timeout after 10 seconds)
+                    infos = st.session_state.processor.infos_queue.get(timeout=10)
+                    if infos is None:
+                        st.error("Failed to fetch video information.")
+                    else:
+                        st.success("Video information fetched successfully!")
+                        st.write("Video Information:", infos)
+
+                        # Display processed frames
+                        queue = st.session_state.processor.get_frame_generator()
+                        while True:
+                            frame = queue.get()
+                            st.image(frame, caption="Processed Frame")
+                except queue.Empty:
+                    st.error("Timed out waiting for video information.")
+                except Exception as e:
+                    st.error(f"An error occurred: {e}")

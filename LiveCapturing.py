@@ -15,8 +15,15 @@ def get_stream_infos(youtube_url):
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(youtube_url, download=False)
-        print(info)
-        return {"url":info["url"], "fps":info["fps"], "width":info["width"], "height":info["height"]}
+        return {
+            "url":info["url"], 
+            "fps":info["fps"], 
+            "width":info["width"], 
+            "height":info["height"], 
+            "title":info["title"] , 
+            "is_live" : info["is_live"],
+            "total_frames" : int(info['duration']*info['fps'])
+            }
     
 
 class LiveCapture:

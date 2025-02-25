@@ -48,8 +48,10 @@ def test_source (source,frame):
 
 def get_source_frame(source,frame):
     frame = cv2.resize(frame, (640, 360))
+    for point in source:
+        cv2.circle(frame, tuple(point), 10, (0, 0, 255), -1)
     frame = cv2.polylines(
-        frame, [source], isClosed=True,color=(255, 0, 0), thickness=2
+        frame, [source], isClosed=True, color=(255, 0, 0), thickness=2
     )
     return frame
 

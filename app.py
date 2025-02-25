@@ -32,6 +32,8 @@ if "processing" not in st.session_state:
     st.session_state.processing = False
 if "stop_processing" not in st.session_state:
     st.session_state.stop_processing = False
+if "processed_video_path" not in st.session_state:
+    st.session_state.processed_video_path = None
 def get_image_from_frame(frame):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     return Image.fromarray(frame)
@@ -197,12 +199,16 @@ else:
             st.session_state.processor.setup_target(np.array(st.session_state.target_points))
 
             # Start video processing in a separate thread
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video_file:
+                st.session_state.processed_video_path = temp_video_file.name
+
             processing_thread = threading.Thread(
                 target=st.session_state.processor.stream_video,
-                args=(source_value, source)
+                args=(source_value, source, st.session_state.processed_video_path),
             )
             processing_thread.start()
             infos = None
+            st.session_state.stop_processing = False
             # Show a spinner while waiting for infos
             with st.spinner("Fetching video information..."):
                 while True:
@@ -228,14 +234,28 @@ else:
                 #Adding Frame Display in Real Time
                 st.button("Stop Processor", on_click=callback)
 
+                is_live = infos["is_live"]
+                total_frames = infos["total_frames"]
+
+                if not is_live:
+                    progress_bar = st.progress(0)
+                else :
+                    st.write("Live Video")
 
                 image = st.image([])
+                processed_frames = 0
+
                 while not st.session_state.stop_processing:
                     if not queue.empty():
                         frame = queue.get()
                         image_frame = get_image_from_frame(frame)
                         image.image(image_frame, caption="Processed Frame")
+                    if not is_live and total_frames > 0:
+                        processed_frames += 1
+                        progress_bar.progress(min(processed_frames / total_frames, 1.0))
 
+                if not is_live and temp_video_path:
+                    st.download_button("Download Processed Video", open(temp_video_path, "rb"), file_name="processed_video.mp4")
 
 
 

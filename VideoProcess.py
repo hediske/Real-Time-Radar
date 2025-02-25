@@ -203,7 +203,7 @@ class VideoProcessor:
 
                         if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
                                 break
-                    cv2.destraoyAllWindows()
+                    cv2.destroyAllWindows()
 
             else:
                 while True:
@@ -231,7 +231,7 @@ class VideoProcessor:
             video_infos = sv.VideoInfo.from_video_path(video_path=path)
             video_infos = VideoInfo(640,360,video_infos.fps,video_infos.total_frames)
             self.infos = video_infos
-            self.infos_queue.put(video_infos) 
+            self.infos_queue.put({"width":video_infos.width,"height":video_infos.height,"fps":video_infos.fps,"total_frames":video_infos.total_frames , "is_live": False}) 
             thickness = sv.calculate_optimal_line_thickness(
                 resolution_wh=video_infos.resolution_wh
             )

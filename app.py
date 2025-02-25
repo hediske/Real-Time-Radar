@@ -1,4 +1,5 @@
 import time
+from streamlit_image_coordinates import streamlit_image_coordinates
 import streamlit as st
 import cv2
 import numpy as np
@@ -34,6 +35,8 @@ if "stop_processing" not in st.session_state:
     st.session_state.stop_processing = False
 if "processed_video_path" not in st.session_state:
     st.session_state.processed_video_path = None
+if "show_hide" not in st.session_state:
+    st.session_state.show_hide = True
 def get_image_from_frame(frame):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     return Image.fromarray(frame)
@@ -189,8 +192,15 @@ else:
     if  st.session_state.current_frame is not None:      
         source_frame = get_source_frame(frame=st.session_state.current_frame, source=np.array(st.session_state.source_points))
         image_polygon = get_image_from_frame(source_frame)
-        st.image(image_polygon, caption="Processed Image with Polygon Zone")
-
+        # st.image(image_polygon, caption="Processed Image with Polygon Zone")
+        value = streamlit_image_coordinates(image_polygon,key="pil")
+        print(value)
+        if value is not None:
+            point = [value["x"], value["y"]]
+            if point not in st.session_state.source_points:
+                st.session_state.source_points.append(point)
+                st.rerun()
+                st.session_state["pil"] = None
 
     if st.button("Process Video", disabled=st.session_state.processing):
         if source is None or source == "":
@@ -246,7 +256,9 @@ else:
                 image = st.image([])
                 processed_frames = 0
 
-                    
+                if st.button("hide/show"):
+                    st.session_state.show_hide = not st.session_state.show_hide 
+
                 while not st.session_state.stop_processing:
                     if not queue.empty():
                         frame = queue.get()

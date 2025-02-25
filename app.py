@@ -191,6 +191,7 @@ else:
         image_polygon = get_image_from_frame(source_frame)
         st.image(image_polygon, caption="Processed Image with Polygon Zone")
 
+
     if st.button("Process Video", disabled=st.session_state.processing):
         if source is None or source == "":
             st.error("Please provide a valid video source.")
@@ -228,7 +229,7 @@ else:
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
                     break
-
+                
                 # Display processed frames
                 queue = st.session_state.processor.get_frame_generator()
                 #Adding Frame Display in Real Time
@@ -245,17 +246,19 @@ else:
                 image = st.image([])
                 processed_frames = 0
 
+                    
                 while not st.session_state.stop_processing:
                     if not queue.empty():
                         frame = queue.get()
                         image_frame = get_image_from_frame(frame)
                         image.image(image_frame, caption="Processed Frame")
-                    if not is_live and total_frames > 0:
-                        processed_frames += 1
-                        progress_bar.progress(min(processed_frames / total_frames, 1.0))
+                        if not is_live and total_frames > 0:
+                            processed_frames += 1
+                            res = min(processed_frames / total_frames, 1.0)
+                            progress_bar.progress(res, f"{res * 100:.2f}%")
 
-                if not is_live and temp_video_path:
-                    st.download_button("Download Processed Video", open(temp_video_path, "rb"), file_name="processed_video.mp4")
+                if not is_live and st.session_state.processed_video_path:
+                    st.download_button("Download Processed Video", open(st.session_state.processed_video_path, "rb"), file_name="processed_video.mp4")
 
 
 

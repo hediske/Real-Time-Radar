@@ -22,7 +22,7 @@ def get_stream_infos(youtube_url):
             "height":info["height"], 
             "title":info["title"] , 
             "is_live" : info["is_live"],
-            "total_frames" : int(info['duration']*info['fps'])
+            "total_frames" : None if info["is_live"] else int(info['duration']*info['fps'])
             }
     
 

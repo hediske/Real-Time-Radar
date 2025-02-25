@@ -25,13 +25,14 @@ class VideoProcessor:
         self.coordinates = None
         self.polygon = None
         self.infos = None
+        self.stopped = False
         self.view_transformer = None
         self.infos_queue = Queue()
         self.model = self.setup_model(model_path)
         self.frame_queue = Queue(maxsize=100)
     
     def get_frame_generator(self):
-        return self.queue
+        return self.frame_queue
 
     def setup_coordinates(self,fps):
         self.coordinates = defaultdict(lambda: deque(maxlen=fps))
@@ -41,6 +42,12 @@ class VideoProcessor:
 
     def setup_iou_threshod(self,iou):
         self.iou = iou
+
+    def stop_processor(self):
+        self.stopped = True
+
+    def start_processor(self):
+        self.stopped = False
 
     def setup_source(self,source):
         self.source = source
@@ -183,6 +190,9 @@ class VideoProcessor:
                 infos = VideoInfo(infos["width"],infos["height"],infos["fps"],infos["total_frames"])
                 with sv.VideoSink(target_path=target, video_info=infos) as sink:
                     while True:
+                        if self.stopped == True :
+                            print("Exiting streaming. Processor Stopped !")
+                            break
                         frame,stream_status = video_stream.read()
                         if stream_status == False:
                             print("Stream ended. Exiting loop.")
@@ -193,10 +203,14 @@ class VideoProcessor:
 
                         if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
                                 break
-                    cv2.destroyAllWindows()
+                    cv2.destraoyAllWindows()
 
             else:
                 while True:
+                    print(self.stopped)
+                    if self.stopped == True :
+                        print("Exiting streaming. Processor Stopped !")
+                        break                    
                     frame,stream_status = video_stream.read()
                     if stream_status == False:
                         print("Stream ended. Exiting loop.")
@@ -233,6 +247,9 @@ class VideoProcessor:
             if target is not None:
                 with sv.VideoSink(target_path=target, video_info=video_infos) as sink:
                     for frame in frame_generator:
+                        if self.stopped == True :
+                            print("Exiting streaming. Processor Stopped !")
+                            break  
                         annotated_frame = self.process_frame(frame,fps)
                         sink.write_frame(annotated_frame)
                         if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
@@ -241,6 +258,9 @@ class VideoProcessor:
 
             else:
                 for frame in frame_generator:
+                    if self.stopped == True :
+                            print("Exiting streaming. Processor Stopped !")
+                            break  
                     self.process_frame(frame, fps,display)
                     if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
                         break

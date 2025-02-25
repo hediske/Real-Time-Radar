@@ -1,3 +1,4 @@
+import time
 import streamlit as st
 import cv2
 import numpy as np
@@ -17,8 +18,8 @@ if "current_iou" not in st.session_state:
     st.session_state.current_iou = None
 if "current_confidence" not in st.session_state:
     st.session_state.current_confidence = None
-if "processing" not in st.session_state:
-    st.session_state.processing = False
+if "processing_button" not in st.session_state:
+    st.session_state.processing_button = False
 if "temp_video_path" not in st.session_state:
     st.session_state.temp_video_path = None
 if "current_frame" not in st.session_state:
@@ -27,9 +28,18 @@ if "source_points" not in st.session_state:
     st.session_state.source_points = []
 if "target_points" not in st.session_state:
     st.session_state.target_points = []
+if "processing" not in st.session_state:
+    st.session_state.processing = False
+if "stop_processing" not in st.session_state:
+    st.session_state.stop_processing = False
 def get_image_from_frame(frame):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     return Image.fromarray(frame)
+
+def callback():
+    st.session_state.processor.stop_processor()
+    st.session_state.stop_processing = True
+    st.error("Stopped Streaming")
 
 def get_processor(model_type, confidence, iou):
     if (st.session_state.processor is None or 
@@ -64,17 +74,17 @@ options = {
     "Local File (Local)": "local"
 }
 
-button_disabled = st.session_state.processing
+button_disabled = st.session_state.processing_button
 
 if st.sidebar.button("Start Processing", disabled=button_disabled):
-    st.session_state.processing = True
+    st.session_state.processing_button = True
     try:
         with st.spinner('Loading the video Processor ...'):
             get_processor(model_type, confidence, iou_threshold)
     except Exception as e:
-        st.session_state.processing = False
+        st.session_state.processing_button = False
         st.error(f"Error loading the Video Processor: {e}")
-    st.session_state.processing = False
+    st.session_state.processing_button = False
 
 if st.session_state.processor is None:
     st.error("Video Processor Not working. Please create a Processor")
@@ -168,17 +178,18 @@ else:
         st.write(np.array(st.session_state.target_points))
 
 
-    if st.button("Preview Video"):
+    if st.button("Preview Video", disabled=st.session_state.processing):
         if source is None or source == "":
             st.error("Please provide a valid video source.")
         else:
             frame = get_preview_frame(source, source_value)
             st.session_state.current_frame = frame
-            source_frame = get_source_frame(frame=st.session_state.current_frame, source=np.array(st.session_state.source_points))
-            image_polygon = get_image_from_frame(source_frame)
-            st.image(image_polygon, caption="Processed Image with Polygon Zone")
+    if  st.session_state.current_frame is not None:      
+        source_frame = get_source_frame(frame=st.session_state.current_frame, source=np.array(st.session_state.source_points))
+        image_polygon = get_image_from_frame(source_frame)
+        st.image(image_polygon, caption="Processed Image with Polygon Zone")
 
-    if st.button("Process Video"):
+    if st.button("Process Video", disabled=st.session_state.processing):
         if source is None or source == "":
             st.error("Please provide a valid video source.")
         else:
@@ -191,24 +202,40 @@ else:
                 args=(source_value, source)
             )
             processing_thread.start()
-
+            infos = None
             # Show a spinner while waiting for infos
             with st.spinner("Fetching video information..."):
-                try:
-                    # Wait for infos to be populated (timeout after 10 seconds)
-                    infos = st.session_state.processor.infos_queue.get(timeout=10)
-                    if infos is None:
-                        st.error("Failed to fetch video information.")
-                    else:
-                        st.success("Video information fetched successfully!")
+                while True:
+                    try:
+                        st.session_state.processor.start_processor()
+                        # Wait for infos to be populated (timeout after 10 seconds)
+                        infos = st.session_state.processor.infos_queue.get(timeout=30)
+                        if infos is None:
+                            st.error("Failed to fetch video information.")
+                            st.session_state.processor.stop_processor()
+                        else:
+                            st.success("Video information fetched successfully!")
                         st.write("Video Information:", infos)
+                    except queue.Empty:
+                        st.error("Timed out waiting for video information.")
+                        st.session_state.processor.stop_processor()
+                    except Exception as e:
+                        st.error(f"An error occurred: {e}")
+                    break
 
-                        # Display processed frames
-                        queue = st.session_state.processor.get_frame_generator()
-                        while True:
-                            frame = queue.get()
-                            st.image(frame, caption="Processed Frame")
-                except queue.Empty:
-                    st.error("Timed out waiting for video information.")
-                except Exception as e:
-                    st.error(f"An error occurred: {e}")
+                # Display processed frames
+                queue = st.session_state.processor.get_frame_generator()
+                #Adding Frame Display in Real Time
+                st.button("Stop Processor", on_click=callback)
+
+
+                image = st.image([])
+                while not st.session_state.stop_processing:
+                    if not queue.empty():
+                        frame = queue.get()
+                        image_frame = get_image_from_frame(frame)
+                        image.image(image_frame, caption="Processed Frame")
+
+
+
+

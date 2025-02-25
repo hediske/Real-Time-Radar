@@ -35,8 +35,6 @@ if "stop_processing" not in st.session_state:
     st.session_state.stop_processing = False
 if "processed_video_path" not in st.session_state:
     st.session_state.processed_video_path = None
-if "show_hide" not in st.session_state:
-    st.session_state.show_hide = True
 def get_image_from_frame(frame):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     return Image.fromarray(frame)
@@ -46,6 +44,8 @@ def callback():
     st.session_state.stop_processing = True
     st.error("Stopped Streaming")
 
+def callback_hide(show_hide):
+    return not show_hide 
 def get_processor(model_type, confidence, iou):
     if (st.session_state.processor is None or 
         model_type != st.session_state.current_model):
@@ -244,7 +244,9 @@ else:
                 queue = st.session_state.processor.get_frame_generator()
                 #Adding Frame Display in Real Time
                 st.button("Stop Processor", on_click=callback)
-
+                show_hide = True
+                if st.button("Show / Hide", on_click=callback_hide(show_hide)):
+                    pass
                 is_live = infos["is_live"]
                 total_frames = infos["total_frames"]
 
@@ -254,23 +256,23 @@ else:
                     st.write("Live Video")
 
                 image = st.image([])
+                placeholder = st.empty()
                 processed_frames = 0
 
-                if st.button("hide/show"):
-                    st.session_state.show_hide = not st.session_state.show_hide 
 
                 while not st.session_state.stop_processing:
                     if not queue.empty():
                         frame = queue.get()
                         image_frame = get_image_from_frame(frame)
-                        image.image(image_frame, caption="Processed Frame")
+                        if show_hide and image is not None:
+                            placeholder.image(image_frame, caption="Processed Frame")
+                        else:
+                            placeholder.empty() 
                         if not is_live and total_frames > 0:
                             processed_frames += 1
                             res = min(processed_frames / total_frames, 1.0)
                             progress_bar.progress(res, f"{res * 100:.2f}%")
-
                 if not is_live and st.session_state.processed_video_path:
                     st.download_button("Download Processed Video", open(st.session_state.processed_video_path, "rb"), file_name="processed_video.mp4")
-
 
 

@@ -35,6 +35,8 @@ if "stop_processing" not in st.session_state:
     st.session_state.stop_processing = False
 if "processed_video_path" not in st.session_state:
     st.session_state.processed_video_path = None
+if "show_image" not in st.session_state:
+    st.session_state.show_image = True
 def get_image_from_frame(frame):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     return Image.fromarray(frame)
@@ -44,8 +46,6 @@ def callback():
     st.session_state.stop_processing = True
     st.error("Stopped Streaming")
 
-def callback_hide(show_hide):
-    return not show_hide 
 def get_processor(model_type, confidence, iou):
     if (st.session_state.processor is None or 
         model_type != st.session_state.current_model):
@@ -158,9 +158,19 @@ else:
         # Button to clear SOURCE coordinates
         if source_col2.button("Clear SOURCE Coordinates"):
             st.session_state.source_points.clear()
+            # print(st.session_state["pil"])
+            st.rerun()
         # Display SOURCE coordinates
         st.write("Current SOURCE Coordinates:")
-        st.write(np.array(st.session_state.source_points))
+        for i, point in enumerate(st.session_state.source_points):
+            col1_, col2_ = col1.columns([3, 1])
+            with col1_:
+                st.write(f"Point {i + 1}: ({point[0]}, {point[1]})")
+            with col2_:
+                if st.button(f"Remove Point", key=f"remove_{i}"):
+                    # Remove the point from the source_points array
+                    st.session_state.source_points.pop(i)
+                    st.rerun()
 
 
 
@@ -180,7 +190,15 @@ else:
             st.session_state.target_points.clear()
         # Display TARGET coordinates
         st.write("Current TARGET Coordinates:")
-        st.write(np.array(st.session_state.target_points))
+        for i, point in enumerate(st.session_state.target_points):
+            col1_, col2_ = col2.columns([3, 1])
+            with col1_:
+                st.write(f"Point {i + 1}: ({point[0]}, {point[1]})")
+            with col2_:
+                if st.button(f"Remove Point", key=f"remove_{i}"):
+                    # Remove the point from the target points array
+                    st.session_state.target_points.pop(i)
+                    st.rerun()
 
 
     if st.button("Preview Video", disabled=st.session_state.processing):
@@ -208,10 +226,10 @@ else:
         else:
             st.session_state.processor.setup_source(np.array(st.session_state.source_points))
             st.session_state.processor.setup_target(np.array(st.session_state.target_points))
-
             # Start video processing in a separate thread
             with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as temp_video_file:
                 st.session_state.processed_video_path = temp_video_file.name
+                print(st.session_state.processed_video_path)
 
             processing_thread = threading.Thread(
                 target=st.session_state.processor.stream_video,
@@ -239,40 +257,38 @@ else:
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
                     break
-                
-                # Display processed frames
-                queue = st.session_state.processor.get_frame_generator()
-                #Adding Frame Display in Real Time
-                st.button("Stop Processor", on_click=callback)
-                show_hide = True
-                if st.button("Show / Hide", on_click=callback_hide(show_hide)):
-                    pass
+            
+            # Display processed frames
+            queue = st.session_state.processor.get_frame_generator()
+            #Adding Frame Display in Real Time
+            st.button("Stop Processor", on_click=callback)
+            if st.button("Show / Hide"):
+                st.session_state.show_image = not st.session_state.show_image
+
+            if not infos is None:
                 is_live = infos["is_live"]
                 total_frames = infos["total_frames"]
-
                 if not is_live:
                     progress_bar = st.progress(0)
                 else :
                     st.write("Live Video")
-
+                if not is_live and st.session_state.processed_video_path:
+                    st.download_button("Download Processed Video", open(st.session_state.processed_video_path, "rb"), file_name="processed_video.mp4")    
                 image = st.image([])
                 placeholder = st.empty()
                 processed_frames = 0
-
-
                 while not st.session_state.stop_processing:
                     if not queue.empty():
                         frame = queue.get()
                         image_frame = get_image_from_frame(frame)
-                        if show_hide and image is not None:
+                        if st.session_state.show_image:
                             placeholder.image(image_frame, caption="Processed Frame")
                         else:
-                            placeholder.empty() 
+                            placeholder.empty()
                         if not is_live and total_frames > 0:
                             processed_frames += 1
                             res = min(processed_frames / total_frames, 1.0)
                             progress_bar.progress(res, f"{res * 100:.2f}%")
-                if not is_live and st.session_state.processed_video_path:
-                    st.download_button("Download Processed Video", open(st.session_state.processed_video_path, "rb"), file_name="processed_video.mp4")
+            
 
 

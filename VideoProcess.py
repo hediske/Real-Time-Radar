@@ -7,7 +7,7 @@ import supervision as sv
 from supervision.utils.video import VideoInfo
 import numpy as np
 from queue import Queue
-
+from tqdm import tqdm
 from ViewTransformer import ViewTransformer
     
 
@@ -65,6 +65,24 @@ class VideoProcessor:
         return model
     
     def setup_annotators(self, thickness, text_scale, fps):
+        """
+        Set up annotators for drawing boxes, labels, and traces on video frames.
+
+        Parameters
+        ----------
+        thickness : int
+            The thickness of the annotations drawn on the frames.
+        text_scale : float
+            The scale of the text used in the label annotations.
+        fps : int
+            The frame rate of the video, used to calculate trace length.
+
+        Notes
+        -----
+        The BoxAnnotator draws bounding boxes around detected objects.
+        The LabelAnnotator adds labels with text scale and thickness.
+        The TraceAnnotator draws traces with a length based on the frame rate.
+        """
         self.box_annotator = sv.BoxAnnotator(thickness=thickness)
         self.label_annotator = sv.LabelAnnotator(
             text_scale=text_scale,
@@ -78,6 +96,20 @@ class VideoProcessor:
         )
 
     def setup_byte_track(self, fps):
+        """
+        Set up the ByteTrack object for tracking objects.
+
+        Parameters
+        ----------
+        fps : int
+            The frame rate of the video stream.
+
+        Notes
+        -----
+        The track_activation_threshold is set to the confidence level of the model.
+        The lost_track_buffer is set to 50, which means that the tracker will hold onto
+        a track for 50 frames after the object has left the frame.
+        """
         self.byte_track = sv.ByteTrack(
             track_activation_threshold=self.confidence,
             lost_track_buffer=50,
@@ -85,6 +117,26 @@ class VideoProcessor:
         )
 
     def get_labels(self,points,tracker_ids,fps):
+        """
+        Generate labels for tracked objects including their speed estimates.
+
+        This method calculates the speed of tracked objects based on their vertical
+        movement over a series of frames. If points are provided, it appends the
+        vertical coordinate to the respective tracker's history. The speed is
+        computed only if the number of collected frames is sufficient (at least
+        one third of the given frames per second). The speed is estimated in km/h.
+
+        Args:
+            points (list of lists): A list of [x, y] coordinates for the detected
+                objects' anchors. If None, only tracker IDs are used.
+            tracker_ids (list): A list of unique tracker IDs for the detected objects.
+            fps (int): The frames per second of the video stream.
+
+        Returns:
+            list: A list of labels containing tracker IDs and speed estimates in
+            the format "#{tracker_id} {speed} km/h". If speed cannot be estimated,
+            only the tracker ID is returned.
+        """
         if points is None :
             return [f"#{tracker_id}" for tracker_id in tracker_ids]
         for tracker_id, [_, y] in zip(tracker_ids, points):
@@ -104,20 +156,33 @@ class VideoProcessor:
         return labels
 
     def clear_queue(self):
+        """
+        Clear the frame queue.
+
+        This method is used to clear the frame queue. This is useful when the user
+        changes the source video or the model, and we want to clear the old frames
+        from the queue.
+
+        This method is thread-safe, as it acquires the queue's lock before clearing
+        the queue.
+        """
         with self.frame_queue.mutex:  # Acquire the queue's lock
             self.frame_queue.queue.clear()
 
     def setup_polygon(self):
-        print(self.source)
+        """
+        Setup the polygon area given the source points. This method will be called 
+        each time the source points are updated. The polygon area is used to filter 
+        the detections and remove the ones that are not inside the polygon area.
+        """
         if self.source is not None and len(self.source) > 0:
+            print(f"Setting the Polygon Area with : {self.source}")
             self.polygon = sv.PolygonZone(self.source)
 
     def annotate_frame(self, frame , fps):
         # Run model inference
         _start = time.time()
         result = self.model.infer(frame)[0]
-        print("inference = ", time.time() - _start)
-
         #Getting the Detections and filtering them
         detections = sv.Detections.from_inference(result)
         detections = detections[detections.confidence > self.confidence]
@@ -147,8 +212,8 @@ class VideoProcessor:
         # Annotate frame
         annotated_frame = self.box_annotator.annotate(scene=frame, detections=detections)
         annotated_frame = sv.draw_polygon(scene=annotated_frame,polygon=self.source)
-        annotated_frame = self.label_annotator.annotate(scene=frame, detections=detections, labels=labels)
-
+        annotated_frame = self.label_annotator.annotate(scene=annotated_frame, detections=detections, labels=labels)
+        annotated_frame = self.trace_annotator.annotate(scene=annotated_frame, detections=detections)
         return annotated_frame
 
 
@@ -246,18 +311,18 @@ class VideoProcessor:
 
             if target is not None:
                 with sv.VideoSink(target_path=target, video_info=video_infos) as sink:
-                    for frame in frame_generator:
+                    for frame in tqdm(frame_generator,total=video_infos.total_frames):
                         if self.stopped == True :
                             print("Exiting streaming. Processor Stopped !")
                             break  
-                        annotated_frame = self.process_frame(frame,fps)
+                        annotated_frame = self.process_frame(frame,fps,display)
                         sink.write_frame(annotated_frame)
                         if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
                             break
                     cv2.destroyAllWindows()
 
             else:
-                for frame in frame_generator:
+                for frame in tqdm(frame_generator,total=video_infos.total_frames):
                     if self.stopped == True :
                             print("Exiting streaming. Processor Stopped !")
                             break  

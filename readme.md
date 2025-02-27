@@ -103,7 +103,7 @@ It provides a command-line interface for video frame processing. The
     polygon.
     ```
     python preview.py preview --url ./data/vehicles.mp4
-    python preview.py test_source --url ./data/vehicles.mp4 --source 384 0 700 0 617 360 -50 360
+    python preview.py test_source --url ./data/vehicles.mp4 --source 229 115 351 115 920 370 -150 370
     ```
 
 - **Video Processing:**
@@ -119,7 +119,10 @@ It provides a command-line interface for video frame processing. The
         - confidence (float, optional): Confidence threshold for detection. Defaults to 0.3.
         - display (bool, optional): Whether to display the video during processing. Defaults to False.
       ```
-      python main.py --type='local'  --input='./data/vehicles.mp4' --output='./data/result.mp4' --display --iou=0.7 --confidence=0.3 --source=229 115 351 115 920 370 -150 370 --target=0 0 24 0 24 249 0 249
+      #Local Video Example
+      python main.py local  './data/vehicles.mp4' --output './data/result.mp4'  --iou 0.7 --confidence=0.3 --source 229 115 351 115 920 370 -150 370 --target 0 0 24 0 24 249 0 249 --display
+      #Real Time Live Video
+      python main.py live  './data/vehicles.mp4' --output './data/result.mp4'  --iou 0.7 --confidence=0.3 --source 229 115 351 115 920 370 -150 370 --target 0 0 24 0 24 249 0 249 --display
       ```
 
 ## Architecture

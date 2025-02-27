@@ -38,7 +38,6 @@ def process_video(
             iou_threshold=iou,
             confidence=confidence,
         )
-
         # Process the video based on its type
         if type == "live":
             processor.stream_live_video(input, target=output, display=display)
@@ -82,7 +81,7 @@ def parse_arguments():
 if __name__ == "__main__":
     # Parse command-line arguments
     args, source, target = parse_arguments()
-
+    print(args)
     # Call the process_video function with the parsed arguments
     process_video(
         type=args.type,

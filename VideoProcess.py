@@ -238,6 +238,7 @@ class VideoProcessor:
             if infos is None:
                 raise ValueError("Failed to fetch video information.")
             self.infos = infos
+            print(infos)
             self.infos_queue.put(infos) 
             thickness = sv.calculate_optimal_line_thickness(
                 resolution_wh=(infos["height"], infos["width"])
@@ -250,10 +251,17 @@ class VideoProcessor:
             self.setup_byte_track(fps)
             self.setup_coordinates(fps)
             video_stream = LiveCapture(infos["url"]).start()
+            
+            
+            total_frames = infos["total_frames"]
+            is_live = infos["is_live"]
+
 
             if target is not None:
                 infos = VideoInfo(infos["width"],infos["height"],infos["fps"],infos["total_frames"])
                 with sv.VideoSink(target_path=target, video_info=infos) as sink:
+                    progress_bar = tqdm(total=total_frames, desc="Processing Video") if not is_live else None
+
                     while True:
                         if self.stopped == True :
                             print("Exiting streaming. Processor Stopped !")
@@ -265,14 +273,21 @@ class VideoProcessor:
                         if frame is not None:
                             annotated_frame= self.process_frame(frame,fps,display)
                             sink.write_frame(annotated_frame)
-
+                            if not is_live:
+                                progress_bar.update(1) 
                         if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
                                 break
+                        if not is_live and progress_bar.n >= total_frames:
+                            print("Processing completed.")
+                            break
+                    if not is_live:
+                        progress_bar.close()
                     cv2.destroyAllWindows()
 
             else:
+                progress_bar = tqdm(total=total_frames, desc="Processing Video") if not is_live else None
+
                 while True:
-                    print(self.stopped)
                     if self.stopped == True :
                         print("Exiting streaming. Processor Stopped !")
                         break                    
@@ -283,8 +298,16 @@ class VideoProcessor:
                     if frame is not None:
                         self.process_frame(frame,fps,display)
                     
+                        if not is_live:
+                            progress_bar.update(1)
+
                     if cv2.waitKey(1) & 0xFF == ord("q"):  # Quit on 'q' key
                         break
+                    if not is_live and progress_bar.n >= total_frames:
+                        print("Processing completed.")
+                        break
+                if not is_live:
+                    progress_bar.close()
                 cv2.destroyAllWindows()
         except Exception as e:
             print(f"Error in stream_live_video: {e}")
@@ -296,6 +319,7 @@ class VideoProcessor:
             video_infos = sv.VideoInfo.from_video_path(video_path=path)
             video_infos = VideoInfo(640,360,video_infos.fps,video_infos.total_frames)
             self.infos = video_infos
+            print(video_infos)
             self.infos_queue.put({"width":video_infos.width,"height":video_infos.height,"fps":video_infos.fps,"total_frames":video_infos.total_frames , "is_live": False}) 
             thickness = sv.calculate_optimal_line_thickness(
                 resolution_wh=video_infos.resolution_wh

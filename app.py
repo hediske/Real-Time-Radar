@@ -37,6 +37,8 @@ if "processed_video_path" not in st.session_state:
     st.session_state.processed_video_path = None
 if "show_image" not in st.session_state:
     st.session_state.show_image = True
+if "processing_complete" not in st.session_state:
+    st.session_state.processing_complete = False
 def get_image_from_frame(frame):
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     return Image.fromarray(frame)
@@ -200,7 +202,7 @@ else:
                     st.session_state.target_points.pop(i)
                     st.rerun()
 
-
+    #Preview Functionnalty
     if st.button("Preview Video", disabled=st.session_state.processing):
         if source is None or source == "":
             st.error("Please provide a valid video source.")
@@ -257,14 +259,13 @@ else:
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
                     break
-            
+            st.session_state.processing_complete = False
             # Display processed frames
             queue = st.session_state.processor.get_frame_generator()
-            #Adding Frame Display in Real Time
             st.button("Stop Processor", on_click=callback)
             if st.button("Show / Hide"):
                 st.session_state.show_image = not st.session_state.show_image
-
+            #Adding Frame Display in Real Time
             if not infos is None:
                 is_live = infos["is_live"]
                 total_frames = infos["total_frames"]
@@ -272,8 +273,6 @@ else:
                     progress_bar = st.progress(0)
                 else :
                     st.write("Live Video")
-                if not is_live and st.session_state.processed_video_path:
-                    st.download_button("Download Processed Video", open(st.session_state.processed_video_path, "rb"), file_name="processed_video.mp4")    
                 image = st.image([])
                 placeholder = st.empty()
                 processed_frames = 0
@@ -289,6 +288,13 @@ else:
                             processed_frames += 1
                             res = min(processed_frames / total_frames, 1.0)
                             progress_bar.progress(res, f"{res * 100:.2f}%")
-            
+                            if processed_frames >= total_frames:
+                                st.session_state.processing_complete = True
+                                if not is_live and st.session_state.processed_video_path:
+                                    if st.session_state.processing_complete:
+                                        st.download_button("Download Processed Video", open(st.session_state.processed_video_path, "rb"), file_name="processed_video.mp4")
+                                    else:
+                                        st.warning("Video processing is not complete yet.")       
+                    
 
 

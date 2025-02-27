@@ -13,7 +13,7 @@ from ViewTransformer import ViewTransformer
 
 
 class VideoProcessor:
-    def __init__(self, model_path ="yolov8x-640", source = None , target = None , iou_threshold = 0.3 ,confidence = 0.3):
+    def __init__(self, model_path ="yolov8n-640", source = None , target = None , iou_threshold = 0.3 ,confidence = 0.3):
         self.iou = iou_threshold
         self.source = source
         self.target = target 

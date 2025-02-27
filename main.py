@@ -1,5 +1,7 @@
 import argparse
 
+import numpy as np
+
 from VideoProcess import VideoProcessor
 
 def process_video(
@@ -60,8 +62,8 @@ def parse_arguments():
 
     # Optional arguments
     parser.add_argument("--output", type=str, default=None, help="Path to save the output video.")
-    parser.add_argument("--source", type=str, default=None, help="Source polygon coordinates as a string (e.g., '[[x1,y1],[x2,y2],...]').")
-    parser.add_argument("--target", type=str, default=None, help="Target polygon coordinates as a string (e.g., '[[x1,y1],[x2,y2],...]').")
+    parser.add_argument("--source", nargs='+', type=int, help="List of points (x1 y1 x2 y2 ...) for source polygon")
+    parser.add_argument("--target", nargs='+', type=int, help="List of points (x1 y1 x2 y2 ...) for target points transformation")
     parser.add_argument("--model", type=str, default="yolov8n-640", help="Model type for inference. Defaults to 'yolov8n-640'.")
     parser.add_argument("--iou", type=float, default=0.3, help="IoU threshold for detection. Defaults to 0.3.")
     parser.add_argument("--confidence", type=float, default=0.3, help="Confidence threshold for detection. Defaults to 0.3.")
@@ -70,8 +72,10 @@ def parse_arguments():
     args = parser.parse_args()
 
     # Convert source and target from string to list of coordinates
-    source = eval(args.source) if args.source else None
-    target = eval(args.target) if args.target else None
+    source = np.array(args.source).reshape(-1, 2) if not (args.source is None or len(args.source) % 2 != 0) else None
+    target = np.array(args.target).reshape(-1, 2) if not (args.target is None or len(args.target) % 2 != 0) else None
+
+
 
     return args, source, target
 

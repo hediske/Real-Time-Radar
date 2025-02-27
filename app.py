@@ -62,7 +62,7 @@ def get_processor(model_type, confidence, iou):
     st.session_state.current_iou = iou
 
 # Streamlit UI
-st.title("Live Video Processing with YOLOv8")
+st.title("Real Time Radar : Car Tracking and Speed Estimation with YOLOv8")
 st.sidebar.header("Adjust Parameters")
 
 # Model Selection

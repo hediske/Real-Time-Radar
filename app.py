@@ -146,6 +146,8 @@ else:
     # Dynamic Polygon Coordinate Input
     st.write("##### Polygon Coordinate Input")
     col1, col2 = st.columns(2)
+    
+    
     # SOURCE Column
     with col1:
         st.write("###### SOURCE Coordinates")
@@ -169,7 +171,7 @@ else:
             with col1_:
                 st.write(f"Point {i + 1}: ({point[0]}, {point[1]})")
             with col2_:
-                if st.button(f"Remove Point", key=f"remove_{i}"):
+                if st.button(f"Remove Point", key=f"remove_source{i}"):
                     # Remove the point from the source_points array
                     st.session_state.source_points.pop(i)
                     st.rerun()
@@ -197,10 +199,9 @@ else:
             with col1_:
                 st.write(f"Point {i + 1}: ({point[0]}, {point[1]})")
             with col2_:
-                if st.button(f"Remove Point", key=f"remove_{i}"):
+                if st.button(f"Remove Point", key=f"remove_target{i}"):
                     # Remove the point from the target points array
                     st.session_state.target_points.pop(i)
-                    st.rerun()
 
     #Preview Functionnalty
     if st.button("Preview Video", disabled=st.session_state.processing):

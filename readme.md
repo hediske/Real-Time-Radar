@@ -33,6 +33,26 @@ Ensure you have the following installed:
 ```bash
 pip install -r "requirements.txt"
 ```
+## Demo
+### Video Selection and Processor creation
+![image](static/demo1.gif)
+
+### Preparing Source Poitns And Target For Homography Transformations.
+![image](static/demo2.gif)
+
+### Video Process And Speed Estimation
+![image](static/demo3.gif)
+
+### Download Video Once Process is Complete
+![image](static/demo4.gif)
+
+
+## Explanation
+- The **left image** represents a real-world road scene with a camera capturing at an angle.
+- The **center matrix** applies a transformation using OpenCV.
+- The **right image** shows the **top-down view**, which is useful for radar-based vehicle tracking.
+![Maths](static/maths.png)
+
 
 
 ## Usage
@@ -109,21 +129,22 @@ It provides a command-line interface for video frame processing. The
 - **Video Processing:**
     Process a video (local or live) using the specified parameters.
     Args:
-        - type (str, mandatory): Type of video, either 'local' or 'live'.
-        - input (str, mandatory): Path to the video file (for local) or YouTube URL (for live).
-        - output (str, optional): Path to save the output video. Defaults to None.
-        - source (list, optional): Source polygon coordinates. Defaults to None.
-        - target (list, optional): Target polygon coordinates. Defaults to None.
-        - model (str, optional): Model type for inference. Defaults to "yolov8x-640".
-        - iou (float, optional): IoU threshold for detection. Defaults to 0.3.
-        - confidence (float, optional): Confidence threshold for detection. Defaults to 0.3.
-        - display (bool, optional): Whether to display the video during processing. Defaults to False.
-      ```
-      #Local Video Example
+    - type (str, mandatory): Type of video, either 'local' or 'live'.
+    - input (str, mandatory): Path to the video file (for local) or YouTube URL (for live).
+    - output (str, optional): Path to save the output video. Defaults to None.
+    - source (list, optional): Source polygon coordinates. Defaults to None.
+    - target (list, optional): Target polygon coordinates. Defaults to None.
+    - model (str, optional): Model type for inference. Defaults to "yolov8x-640".
+    - iou (float, optional): IoU threshold for detection. Defaults to 0.3.
+    - confidence (float, optional): Confidence threshold for detection. Defaults to 0.3.
+    - display (bool, optional): Whether to display the video during processing. Defaults to False.
+
+    ```
+    #Local Video Example
       python main.py local  './data/vehicles.mp4' --output './data/result.mp4'  --iou 0.7 --confidence=0.3 --source 229 115 351 115 920 370 -150 370 --target 0 0 24 0 24 249 0 249 --display
-      #Real Time Live Video
-      python main.py live  './data/vehicles.mp4' --output './data/result.mp4'  --iou 0.7 --confidence=0.3 --source 229 115 351 115 920 370 -150 370 --target 0 0 24 0 24 249 0 249 --display
-      ```
+    #Real Time Live Video
+      python main.py live  'https://www.youtube.com/watch?v=5_XSYlAfJZM)' --output './data/result.mp4' --display
+    ```
 
 ## Architecture
 
